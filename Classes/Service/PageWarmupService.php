@@ -104,8 +104,13 @@ class PageWarmupService
 
         $this->io->writeln('Calling ' . (string)$url . ' (Page ID: ' . $pageRecord['uid'] . ', UserGroups: ' . implode(',', $userGroups) . ')');
 
-        $builder = new FrontendRequestBuilder();
-        $builder->buildRequestForPage($url, 13, $userGroups);
+        try {
+            $builder = new FrontendRequestBuilder();
+            $builder->buildRequestForPage($url, 13, $userGroups);
+        } catch (\Throwable $e) {
+            $this->io->error('Could not request page: ' . $e->getMessage() . "\n");
+        }
+
     }
 
     protected function resolveRequestedUserGroupsForPage(array $pageRecord)
