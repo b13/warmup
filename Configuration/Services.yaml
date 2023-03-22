@@ -1,0 +1,14 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  B13\Warmup\:
+    resource: '../Classes/*'
+
+  B13\Warmup\Command\WarmupCommand:
+    tags:
+      - name: console.command
+        command: cache:warmupPages
+        description: Warms up some basic caches for frontend rendering.

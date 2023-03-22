@@ -24,15 +24,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  */
 class WarmupCommand extends Command
 {
-    private $io;
+    private SymfonyStyle $io;
 
-    /**
-     * Configure the command by defining the name, options and arguments
-     */
     public function configure()
     {
         $this
-            ->setDescription('Warms up some basic caches for frontend rendering.')
             ->addArgument(
                 'type',
                 InputArgument::OPTIONAL,
@@ -41,12 +37,16 @@ class WarmupCommand extends Command
             );
     }
 
+    protected function initialize(InputInterface $input, OutputInterface $output)
+    {
+        $this->io = new SymfonyStyle($input, $output);
+    }
+
     /**
      * @inheritdoc
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->io = new SymfonyStyle($input, $output);
         $this->io->title('Welcome to the Cache Warmup');
 
         $type = $input->getArgument('type');
@@ -57,27 +57,22 @@ class WarmupCommand extends Command
         }
 
         $this->io->success('All done');
-        return 0;
+        return Command::SUCCESS;
     }
 
     private function getWarmupService(string $type): iterable
     {
-        if (version_compare(TYPO3_branch, '9.5') === -1) {
-            yield 'rootline' => new RootlineV8Service();
-        } else {
-            switch ($type) {
-                case 'all':
-                    yield 'rootline' => new RootlineWarmupService();
-                    yield 'pages' => new PageWarmupService();
-                    break;
-                case 'rootline':
-                    yield 'rootline' => new RootlineWarmupService();
-                    break;
-                case 'pages':
-                    yield 'pages' => new PageWarmupService();
-                    break;
-
-            }
+        switch ($type) {
+            case 'all':
+                yield 'rootline' => new RootlineWarmupService();
+                yield 'pages' => new PageWarmupService();
+                break;
+            case 'rootline':
+                yield 'rootline' => new RootlineWarmupService();
+                break;
+            case 'pages':
+                yield 'pages' => new PageWarmupService();
+                break;
         }
     }
 }
