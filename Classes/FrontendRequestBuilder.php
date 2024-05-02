@@ -82,8 +82,6 @@ class FrontendRequestBuilder
             // @todo: log
             var_dump(get_class($e));
         }
-        $response->getBody()->rewind();
-        var_dump($response->getBody()->getContents());
         $this->restore();
 
         return $response;
