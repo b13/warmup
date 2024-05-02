@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace B13\Warmup\Service;
@@ -11,7 +12,6 @@ namespace B13\Warmup\Service;
  * of the License, or any later version.
  */
 
-
 use Symfony\Component\Console\Style\SymfonyStyle;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
@@ -23,7 +23,7 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
 
 class RootlineWarmupService
 {
-    public function warmUp(SymfonyStyle $io)
+    public function warmUp(SymfonyStyle $io): void
     {
         // fetch all pages which are not deleted and in live workspace
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
@@ -32,8 +32,8 @@ class RootlineWarmupService
             ->removeAll()
             ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class))
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-        $statement = $queryBuilder->select('*')->from('pages')->execute();
-        while ($pageRecord = $statement->fetch()) {
+        $statement = $queryBuilder->select('*')->from('pages')->executeQuery();
+        while ($pageRecord = $statement->fetchAssociative()) {
             try {
                 $this->buildRootLineForPage($pageRecord);
             } catch (\RuntimeException $e) {
@@ -42,7 +42,7 @@ class RootlineWarmupService
         }
     }
 
-    protected function buildRootLineForPage(array $pageRecord)
+    protected function buildRootLineForPage(array $pageRecord): void
     {
         $context = clone GeneralUtility::makeInstance(Context::class);
         if ($pageRecord['sys_language_uid']) {

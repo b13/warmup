@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace B13\Warmup\Authentication;
 
 /*
@@ -10,34 +12,29 @@ namespace B13\Warmup\Authentication;
  * of the License, or any later version.
  */
 
-use TYPO3\CMS\Core\Authentication\AbstractAuthenticationService;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Frontend\Authentication\ModifyResolvedFrontendGroupsEvent;
 
 /**
  * Magic logic to add user groups injected into $this->>info['alwaysActiveGroups']
  */
-class FrontendUserGroupInjector extends AbstractAuthenticationService
+class FrontendUserGroupInjector implements LoggerAwareInterface
 {
-    /**
-     * @param $user
-     * @param $knownGroups
-     * @return array
-     */
-    public function getGroups($user, $knownGroups)
+    use LoggerAwareTrait;
+
+    public function frontendUserGroupModifier(ModifyResolvedFrontendGroupsEvent $event): void
     {
-        $groupIds = $this->info['alwaysActiveGroups'] ?? [];
-        if (!empty($groupIds)) {
-            // Also request a user
-            // @todo: should fetch the whole record, probably in a separate hook
-            if ($this->info['requestUser'] ?? false) {
-                $this->pObj->user['uid'] = (int)$this->info['requestUser'];
-            }
-            return $this->fetchGroupsFromDatabase($groupIds);
+        $simulationData = $event->getRequest()->getAttribute('b13/warmup');
+        if (!is_array($simulationData)) {
+            $this->logger->warning(self::class . ' was activated, but no user groups were set');
+            return;
         }
-        $this->logger->warning(self::class . ' was activated, but no user groups were set');
-        return [];
+        $userGroups = $this->fetchGroupsFromDatabase($simulationData['simulateFrontendUserGroupIds']);
+        $event->setGroups($userGroups);
     }
 
     private function fetchGroupsFromDatabase(array $groupUids): array
@@ -55,9 +52,9 @@ class FrontendUserGroupInjector extends AbstractAuthenticationService
                     $queryBuilder->createNamedParameter($groupUids, Connection::PARAM_INT_ARRAY)
                 )
             )
-            ->execute();
+            ->executeQuery();
 
-        while ($row = $res->fetch()) {
+        while ($row = $res->fetchAssociative()) {
             $groupRecords[$row['uid']] = $row;
         }
         return $groupRecords;

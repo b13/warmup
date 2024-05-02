@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace B13\Warmup\Service;
 
 /*
@@ -29,19 +31,15 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
  */
 class PageWarmupService
 {
-    private $io;
+    private SymfonyStyle $io;
+    private array $excludePages = [];
 
-    /**
-     * @var array
-     */
-    private $excludePages = [];
-
-    public function __construct($excludePages = [])
+    public function __construct(array $excludePages = [])
     {
         $this->excludePages = $excludePages;
     }
 
-    public function warmUp(SymfonyStyle $io)
+    public function warmUp(SymfonyStyle $io): void
     {
         $this->io = $io;
 
@@ -53,7 +51,7 @@ class PageWarmupService
             7, // mount point
             199, // menu separator
             254, // folder
-            255 // recycler
+            255, // recycler
         ];
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable('pages');
@@ -65,12 +63,12 @@ class PageWarmupService
         $statement = $queryBuilder->select('*')->from('pages')->where(
             $queryBuilder->expr()->notIn('doktype', $excludeDocTypes),
             $queryBuilder->expr()->eq('sys_language_uid', 0)
-        )->execute();
+        )->executeQuery();
 
         $io->writeln('Starting to request pages at ' . date('d.m.Y H:i:s'));
         $requestedPages = 0;
 
-        while ($pageRecord = $statement->fetch()) {
+        while ($pageRecord = $statement->fetchAssociative()) {
             if (in_array((int)$pageRecord['uid'], $this->excludePages, true)) {
                 continue;
             }
@@ -81,7 +79,6 @@ class PageWarmupService
                 $url = $site->getRouter()->generateUri($pageRecord, ['_language' => $siteLanguage]);
                 $this->executeRequestForPageRecord($url, $pageRecord);
                 $requestedPages++;
-
             } catch (SiteNotFoundException $e) {
                 $io->error('Rootline Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up');
             }
@@ -90,11 +87,7 @@ class PageWarmupService
         $io->writeln('Finished requesting ' . $requestedPages . ' pages at ' . date('d.m.Y H:i:s'));
     }
 
-    /**
-     * @param UriInterface $url
-     * @param array $pageRecord
-     */
-    protected function executeRequestForPageRecord(UriInterface $url, array $pageRecord)
+    protected function executeRequestForPageRecord(UriInterface $url, array $pageRecord): void
     {
         Bootstrap::initializeBackendUser(CommandLineUserAuthentication::class);
         Bootstrap::initializeBackendAuthentication();
@@ -107,7 +100,7 @@ class PageWarmupService
         $builder->buildRequestForPage($url, 13, $userGroups);
     }
 
-    protected function resolveRequestedUserGroupsForPage(array $pageRecord)
+    protected function resolveRequestedUserGroupsForPage(array $pageRecord): array
     {
         $userGroups = $pageRecord['fe_group'];
         $rootLine = GeneralUtility::makeInstance(RootlineUtility::class, $pageRecord['uid'])->get();

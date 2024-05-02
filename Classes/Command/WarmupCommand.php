@@ -1,5 +1,7 @@
 <?php
-declare(strict_types = 1);
+
+declare(strict_types=1);
+
 namespace B13\Warmup\Command;
 
 /*
@@ -11,7 +13,6 @@ namespace B13\Warmup\Command;
  */
 
 use B13\Warmup\Service\PageWarmupService;
-use B13\Warmup\Service\RootlineV8Service;
 use B13\Warmup\Service\RootlineWarmupService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -26,7 +27,7 @@ class WarmupCommand extends Command
 {
     private SymfonyStyle $io;
 
-    public function configure()
+    public function configure(): void
     {
         $this
             ->addArgument(

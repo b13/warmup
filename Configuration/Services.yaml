@@ -12,3 +12,9 @@ services:
       - name: console.command
         command: cache:warmupPages
         description: Warms up some basic caches for frontend rendering.
+
+  B13\Warmup\Authentication\FrontendUserGroupInjector:
+    tags:
+      - name: event.listener
+        method: frontendUserGroupModifier
+        identifier: b13/warmup/user-group-injector
