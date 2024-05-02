@@ -98,7 +98,6 @@ class PageWarmupService
     {
         Bootstrap::initializeBackendUser(CommandLineUserAuthentication::class);
         Bootstrap::initializeBackendAuthentication();
-        Bootstrap::initializeBackendRouter();
 
         $userGroups = $this->resolveRequestedUserGroupsForPage($pageRecord);
 

@@ -28,13 +28,13 @@ use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Service\DependencyOrderingService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Mvc\Exception\RequiredArgumentMissingException;
+use TYPO3\CMS\Extbase\Mvc\Controller\Exception\RequiredArgumentMissingException;
 use TYPO3\CMS\Extbase\Service\EnvironmentService;
 use TYPO3\CMS\Extbase\SignalSlot\Dispatcher;
 use TYPO3\CMS\Frontend\Http\RequestHandler;
 
 /**
- * Simulates a HTTP request for TYPO3 Frontend within the same request.
+ * Simulates an HTTP request for TYPO3 Frontend within the same request.
  *
  * @todo: clean this class up
  */
@@ -50,43 +50,26 @@ class FrontendRequestBuilder
     {
         $this->originalUser = $GLOBALS['BE_USER'];
         $this->backupEnvironment();
-        $this->initializeEnvironmentForNonCliCall(GeneralUtility::getApplicationContext());
+        $this->initializeEnvironmentForNonCliCall(Environment::getContext());
 
         $this->originalEnvironmentService = GeneralUtility::makeInstance(EnvironmentService::class);
-        if (!class_exists(Typo3Version::class) || (new Typo3Version)->getMajorVersion() < 10) {
-            $environmentService = new class extends EnvironmentService {
-                public function isEnvironmentInFrontendMode()
-                {
-                    return true;
-                }
-                public function isEnvironmentInBackendMode()
-                {
-                    return false;
-                }
-                public function isEnvironmentInCliMode()
-                {
-                    return false;
-                }
-            };
-            GeneralUtility::setSingletonInstance(Dispatcher::class, new Dispatcher());
-        } else {
-            // TYPO3 v10 ships with strict types
-            $environmentService = new class extends EnvironmentService {
-                public function isEnvironmentInFrontendMode(): bool
-                {
-                    return true;
-                }
-                public function isEnvironmentInBackendMode(): bool
-                {
-                    return false;
-                }
-                public function isEnvironmentInCliMode()
-                {
-                    return false;
-                }
-            };
 
-        }
+        // TYPO3 v10 ships with strict types
+        $environmentService = new class extends EnvironmentService {
+            public function isEnvironmentInFrontendMode(): bool
+            {
+                return true;
+            }
+            public function isEnvironmentInBackendMode(): bool
+            {
+                return false;
+            }
+            public function isEnvironmentInCliMode()
+            {
+                return false;
+            }
+        };
+
         GeneralUtility::setSingletonInstance(EnvironmentService::class, $environmentService);
 
         $GLOBALS['BE_USER'] = null;
