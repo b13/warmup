@@ -30,7 +30,7 @@ class FrontendUserGroupInjector implements LoggerAwareInterface
     {
         $simulationData = $event->getRequest()->getAttribute('b13/warmup');
         if (!is_array($simulationData)) {
-            $this->logger->warning(self::class . ' was activated, but no user groups were set');
+            $this->logger->info(self::class . ' was activated, but no user groups were set');
             return;
         }
         $userGroups = $this->fetchGroupsFromDatabase($simulationData['simulateFrontendUserGroupIds']);
