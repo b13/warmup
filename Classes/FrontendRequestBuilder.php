@@ -72,7 +72,7 @@ class FrontendRequestBuilder
         try {
             $response = $this->executeFrontendRequest($request);
         } catch (ImmediateResponseException $e) {
-            var_dump(get_class($e));
+            #var_dump(get_class($e));
             $response = $e->getResponse();
         } catch (RequiredArgumentMissingException $e) {
             // @todo: log
@@ -80,7 +80,7 @@ class FrontendRequestBuilder
             // @todo: log
         } catch (\Throwable $e) {
             // @todo: log
-            var_dump(get_class($e));
+            #var_dump(get_class($e));
         }
         $this->restore();
 
