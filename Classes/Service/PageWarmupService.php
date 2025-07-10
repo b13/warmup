@@ -13,6 +13,8 @@ namespace B13\Warmup\Service;
  */
 
 use B13\Warmup\FrontendRequestBuilder;
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Psr\Http\Message\UriInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use TYPO3\CMS\Core\Authentication\CommandLineUserAuthentication;
@@ -61,8 +63,8 @@ class PageWarmupService
             ->add(GeneralUtility::makeInstance(HiddenRestriction::class))
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
         $statement = $queryBuilder->select('*')->from('pages')->where(
-            $queryBuilder->expr()->notIn('doktype', $excludeDocTypes),
-            $queryBuilder->expr()->eq('sys_language_uid', 0)
+            $queryBuilder->expr()->notIn('doktype', $queryBuilder->createNamedParameter($excludeDocTypes, ArrayParameterType::INTEGER)),
+            $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter(0, ParameterType::INTEGER))
         )->executeQuery();
 
         $io->writeln('Starting to request pages at ' . date('d.m.Y H:i:s'));
