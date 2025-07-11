@@ -14,6 +14,7 @@ namespace B13\Warmup\Service;
 
 use B13\Warmup\FrontendRequestBuilder;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Psr\Http\Message\UriInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use TYPO3\CMS\Core\Database\ConnectionPool;
