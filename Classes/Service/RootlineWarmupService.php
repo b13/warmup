@@ -12,9 +12,11 @@ namespace B13\Warmup\Service;
  * of the License, or any later version.
  */
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
+use TYPO3\CMS\Core\Context\VisibilityAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
@@ -23,10 +25,12 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
 
 class RootlineWarmupService
 {
+    public function __construct(protected ConnectionPool $connectionPool, protected LoggerInterface $logger) {}
+
     public function warmUp(SymfonyStyle $io): void
     {
         // fetch all pages which are not deleted and in live workspace
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
+        $queryBuilder = $this->connectionPool
             ->getQueryBuilderForTable('pages');
         $queryBuilder->getRestrictions()
             ->removeAll()
@@ -45,9 +49,14 @@ class RootlineWarmupService
     protected function buildRootLineForPage(array $pageRecord): void
     {
         $context = clone GeneralUtility::makeInstance(Context::class);
-        if ($pageRecord['sys_language_uid']) {
+        $context->setAspect('visibility', new VisibilityAspect(false, false, false, false));
+        $pageUid = $pageRecord['uid'];
+        if ($pageRecord['sys_language_uid'] > 0) {
             $context->setAspect('language', new LanguageAspect($pageRecord['sys_language_uid']));
+            $pageUid = $pageRecord['l10n_parent'];
         }
-        GeneralUtility::makeInstance(RootlineUtility::class, $pageRecord['uid'], '', $context)->get();
+        $rootlineUtility = GeneralUtility::makeInstance(RootlineUtility::class, $pageUid, '', $context);
+        $this->logger->debug('buildRootLine', ['pageUid' => $pageRecord['uid'], 'cacheIdentifier' => $rootlineUtility->getCacheIdentifier($pageUid)]);
+        $rootlineUtility->get();
     }
 }

@@ -27,6 +27,11 @@ class WarmupCommand extends Command
 {
     private SymfonyStyle $io;
 
+    public function __construct(protected PageWarmupService $pageWarmupService, protected RootlineWarmupService $rootlineWarmupService, ?string $name = null)
+    {
+        parent::__construct($name);
+    }
+
     public function configure(): void
     {
         $this
@@ -65,14 +70,14 @@ class WarmupCommand extends Command
     {
         switch ($type) {
             case 'all':
-                yield 'rootline' => new RootlineWarmupService();
-                yield 'pages' => new PageWarmupService();
+                yield 'rootline' => $this->rootlineWarmupService;
+                yield 'pages' => $this->pageWarmupService;
                 break;
             case 'rootline':
-                yield 'rootline' => new RootlineWarmupService();
+                yield 'rootline' => $this->rootlineWarmupService;
                 break;
             case 'pages':
-                yield 'pages' => new PageWarmupService();
+                yield 'pages' => $this->pageWarmupService;
                 break;
         }
     }

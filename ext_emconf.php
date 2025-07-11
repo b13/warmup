@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 $EM_CONF[$_EXTKEY] = [
     'title' => 'Cache Warmup',
     'description' => 'Allows to warmup caches via the command line interface',

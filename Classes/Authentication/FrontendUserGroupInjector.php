@@ -12,19 +12,17 @@ namespace B13\Warmup\Authentication;
  * of the License, or any later version.
  */
 
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
-use TYPO3\CMS\Core\Database\Connection;
+use Doctrine\DBAL\ArrayParameterType;
+use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\Authentication\ModifyResolvedFrontendGroupsEvent;
 
 /**
  * Magic logic to add user groups injected into $this->>info['alwaysActiveGroups']
  */
-class FrontendUserGroupInjector implements LoggerAwareInterface
+class FrontendUserGroupInjector
 {
-    use LoggerAwareTrait;
+    public function __construct(protected LoggerInterface $logger, protected ConnectionPool $connectionPool) {}
 
     public function frontendUserGroupModifier(ModifyResolvedFrontendGroupsEvent $event): void
     {
@@ -41,15 +39,14 @@ class FrontendUserGroupInjector implements LoggerAwareInterface
     {
         $groupRecords = [];
         $this->logger->debug('Get usergroups with id: ' . implode(',', $groupUids));
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('fe_groups');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('fe_groups');
 
         $res = $queryBuilder->select('*')
             ->from('fe_groups')
             ->where(
                 $queryBuilder->expr()->in(
                     'uid',
-                    $queryBuilder->createNamedParameter($groupUids, Connection::PARAM_INT_ARRAY)
+                    $queryBuilder->createNamedParameter($groupUids, ArrayParameterType::INTEGER)
                 )
             )
             ->executeQuery();

@@ -14,32 +14,27 @@ namespace B13\Warmup\Service;
 
 use B13\Warmup\FrontendRequestBuilder;
 use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
 use Psr\Http\Message\UriInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use TYPO3\CMS\Core\Authentication\CommandLineUserAuthentication;
-use TYPO3\CMS\Core\Core\Bootstrap;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
+use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\RootlineUtility;
 
-/**
- * @todo: clean this class up, allow multi-language via SiteLanguage
- */
 class PageWarmupService
 {
     private SymfonyStyle $io;
-    private array $excludePages = [];
 
-    public function __construct(array $excludePages = [])
-    {
-        $this->excludePages = $excludePages;
-    }
+    public function __construct(
+        protected FrontendRequestBuilder $frontendRequestBuilder,
+        protected SiteFinder $siteFinder,
+        protected ConnectionPool $connectionPool
+    ) {}
 
     public function warmUp(SymfonyStyle $io): void
     {
@@ -47,15 +42,15 @@ class PageWarmupService
 
         // fetch all pages which are not deleted and in live workspace and not one of excluded types
         $excludeDocTypes = [
-            3, // external link
-            4, // shortcut
-            6, // be user section
-            7, // mount point
-            199, // menu separator
-            254, // folder
-            255, // recycler
+            PageRepository::DOKTYPE_LINK,
+            PageRepository::DOKTYPE_SHORTCUT,
+            PageRepository::DOKTYPE_BE_USER_SECTION,
+            PageRepository::DOKTYPE_MOUNTPOINT,
+            PageRepository::DOKTYPE_SPACER,
+            PageRepository::DOKTYPE_SYSFOLDER,
+            PageRepository::DOKTYPE_RECYCLER,
         ];
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
+        $queryBuilder = $this->connectionPool
             ->getQueryBuilderForTable('pages');
         $queryBuilder->getRestrictions()
             ->removeAll()
@@ -63,26 +58,26 @@ class PageWarmupService
             ->add(GeneralUtility::makeInstance(HiddenRestriction::class))
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
         $statement = $queryBuilder->select('*')->from('pages')->where(
-            $queryBuilder->expr()->notIn('doktype', $queryBuilder->createNamedParameter($excludeDocTypes, ArrayParameterType::INTEGER)),
-            $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter(0, ParameterType::INTEGER))
+            $queryBuilder->expr()->notIn('doktype', $queryBuilder->createNamedParameter($excludeDocTypes, ArrayParameterType::INTEGER))
         )->executeQuery();
 
         $io->writeln('Starting to request pages at ' . date('d.m.Y H:i:s'));
         $requestedPages = 0;
 
         while ($pageRecord = $statement->fetchAssociative()) {
-            if (in_array((int)$pageRecord['uid'], $this->excludePages, true)) {
-                continue;
-            }
             try {
-                $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId((int)$pageRecord['uid']);
                 $languageUid = (int)$pageRecord['sys_language_uid'];
+                $pageUid = $pageRecord['uid'];
+                if ($languageUid > 0) {
+                    $pageUid = $pageRecord['l10n_parent'];
+                }
+                $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($pageUid);
                 $siteLanguage = $site->getLanguageById($languageUid);
-                $url = $site->getRouter()->generateUri($pageRecord, ['_language' => $siteLanguage]);
+                $url = $site->getRouter()->generateUri($pageUid, ['_language' => $siteLanguage]);
                 $this->executeRequestForPageRecord($url, $pageRecord);
                 $requestedPages++;
             } catch (SiteNotFoundException $e) {
-                $io->error('Rootline Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up');
+                $io->error('Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up');
             }
         }
 
@@ -91,15 +86,9 @@ class PageWarmupService
 
     protected function executeRequestForPageRecord(UriInterface $url, array $pageRecord): void
     {
-        Bootstrap::initializeBackendUser(CommandLineUserAuthentication::class);
-        Bootstrap::initializeBackendAuthentication();
-
         $userGroups = $this->resolveRequestedUserGroupsForPage($pageRecord);
-
         $this->io->writeln('Calling ' . (string)$url . ' (Page ID: ' . $pageRecord['uid'] . ', UserGroups: ' . implode(',', $userGroups) . ')');
-
-        $builder = new FrontendRequestBuilder();
-        $builder->buildRequestForPage($url, 13, $userGroups);
+        $this->frontendRequestBuilder->buildRequestForPage($url, $userGroups);
     }
 
     protected function resolveRequestedUserGroupsForPage(array $pageRecord): array
