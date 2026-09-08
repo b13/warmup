@@ -14,6 +14,7 @@ namespace B13\Warmup\Command;
 
 use B13\Warmup\Service\PageWarmupService;
 use B13\Warmup\Service\RootlineWarmupService;
+use B13\Warmup\Service\WarmupServiceInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,18 +22,21 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Called via cache:warmup
+ * Called via cache:warmupPages
  */
 class WarmupCommand extends Command
 {
     private SymfonyStyle $io;
 
-    public function __construct(protected PageWarmupService $pageWarmupService, protected RootlineWarmupService $rootlineWarmupService, ?string $name = null)
-    {
+    public function __construct(
+        protected PageWarmupService $pageWarmupService,
+        protected RootlineWarmupService $rootlineWarmupService,
+        ?string $name = null
+    ) {
         parent::__construct($name);
     }
 
-    public function configure(): void
+    protected function configure(): void
     {
         $this
             ->addArgument(
@@ -48,37 +52,36 @@ class WarmupCommand extends Command
         $this->io = new SymfonyStyle($input, $output);
     }
 
-    /**
-     * @inheritdoc
-     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->io->title('Welcome to the Cache Warmup');
 
-        $type = $input->getArgument('type');
+        $type = (string)$input->getArgument('type');
+        $services = $this->getWarmupServices($type);
+        if ($services === []) {
+            $this->io->error('Unknown type "' . $type . '", use one of "all", "rootline" or "pages".');
+            return Command::INVALID;
+        }
 
-        foreach ($this->getWarmupService($type) as $specificType => $service) {
+        foreach ($services as $specificType => $service) {
             $this->io->section('Warming up ' . $specificType);
-            call_user_func_array([$service, 'warmUp'], [$this->io]);
+            $service->warmUp($this->io);
         }
 
         $this->io->success('All done');
         return Command::SUCCESS;
     }
 
-    private function getWarmupService(string $type): iterable
+    /**
+     * @return array<string, WarmupServiceInterface>
+     */
+    private function getWarmupServices(string $type): array
     {
-        switch ($type) {
-            case 'all':
-                yield 'rootline' => $this->rootlineWarmupService;
-                yield 'pages' => $this->pageWarmupService;
-                break;
-            case 'rootline':
-                yield 'rootline' => $this->rootlineWarmupService;
-                break;
-            case 'pages':
-                yield 'pages' => $this->pageWarmupService;
-                break;
-        }
+        return match ($type) {
+            'all' => ['rootline' => $this->rootlineWarmupService, 'pages' => $this->pageWarmupService],
+            'rootline' => ['rootline' => $this->rootlineWarmupService],
+            'pages' => ['pages' => $this->pageWarmupService],
+            default => [],
+        };
     }
 }

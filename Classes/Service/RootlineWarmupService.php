@@ -23,9 +23,13 @@ use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\RootlineUtility;
 
-class RootlineWarmupService
+class RootlineWarmupService implements WarmupServiceInterface
 {
-    public function __construct(protected ConnectionPool $connectionPool, protected LoggerInterface $logger) {}
+    public function __construct(
+        protected ConnectionPool $connectionPool,
+        protected Context $context,
+        protected LoggerInterface $logger
+    ) {}
 
     public function warmUp(SymfonyStyle $io): void
     {
@@ -34,29 +38,29 @@ class RootlineWarmupService
             ->getQueryBuilderForTable('pages');
         $queryBuilder->getRestrictions()
             ->removeAll()
-            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class))
-            ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+            ->add(new WorkspaceRestriction())
+            ->add(new DeletedRestriction());
         $statement = $queryBuilder->select('*')->from('pages')->executeQuery();
         while ($pageRecord = $statement->fetchAssociative()) {
             try {
                 $this->buildRootLineForPage($pageRecord);
-            } catch (\RuntimeException $e) {
-                $io->error('Rootline Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up');
+            } catch (\Throwable $e) {
+                $io->error('Rootline Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up: ' . $e->getMessage());
             }
         }
     }
 
     protected function buildRootLineForPage(array $pageRecord): void
     {
-        $context = clone GeneralUtility::makeInstance(Context::class);
+        $context = clone $this->context;
         $context->setAspect('visibility', new VisibilityAspect(false, false, false, false));
-        $pageUid = $pageRecord['uid'];
-        if ($pageRecord['sys_language_uid'] > 0) {
-            $context->setAspect('language', new LanguageAspect($pageRecord['sys_language_uid']));
-            $pageUid = $pageRecord['l10n_parent'];
+        $pageUid = (int)$pageRecord['uid'];
+        $languageUid = (int)($pageRecord['sys_language_uid'] ?? 0);
+        if ($languageUid > 0) {
+            $context->setAspect('language', new LanguageAspect($languageUid));
+            $pageUid = (int)$pageRecord['l10n_parent'];
         }
-        $rootlineUtility = GeneralUtility::makeInstance(RootlineUtility::class, $pageUid, '', $context);
-        $this->logger->debug('buildRootLine', ['pageUid' => $pageRecord['uid'], 'cacheIdentifier' => $rootlineUtility->getCacheIdentifier($pageUid)]);
-        $rootlineUtility->get();
+        $this->logger->debug('buildRootLine', ['pageUid' => $pageRecord['uid']]);
+        GeneralUtility::makeInstance(RootlineUtility::class, $pageUid, '', $context)->get();
     }
 }
