@@ -81,7 +81,7 @@ class PageWarmupService implements WarmupServiceInterface
                 $url = $site->getRouter()->generateUri($pageUid, ['_language' => $siteLanguage]);
                 $this->executeRequestForPageRecord($url, $pageRecord);
                 $requestedPages++;
-            } catch (\Throwable $e) {
+            } catch (\Exception $e) {
                 $io->error('Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up: ' . $e->getMessage());
             }
         }
@@ -98,14 +98,13 @@ class PageWarmupService implements WarmupServiceInterface
 
     protected function resolveRequestedUserGroupsForPage(array $pageRecord): array
     {
-        $userGroups = (string)($pageRecord['fe_group'] ?? '');
+        $userGroups = GeneralUtility::intExplode(',', (string)($pageRecord['fe_group'] ?? ''), true);
         $rootLine = GeneralUtility::makeInstance(RootlineUtility::class, (int)$pageRecord['uid'])->get();
         foreach ($rootLine as $pageInRootLine) {
             if ($pageInRootLine['extendToSubpages'] ?? false) {
-                $userGroups .= ',' . (string)($pageInRootLine['fe_group'] ?? '');
+                $userGroups = array_merge($userGroups, GeneralUtility::intExplode(',', (string)($pageInRootLine['fe_group'] ?? ''), true));
             }
         }
-        $userGroups = GeneralUtility::intExplode(',', $userGroups, true);
         $userGroups = array_filter($userGroups);
         return array_unique($userGroups);
     }

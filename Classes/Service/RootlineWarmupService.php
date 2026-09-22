@@ -44,7 +44,7 @@ class RootlineWarmupService implements WarmupServiceInterface
         while ($pageRecord = $statement->fetchAssociative()) {
             try {
                 $this->buildRootLineForPage($pageRecord);
-            } catch (\Throwable $e) {
+            } catch (\Exception $e) {
                 $io->error('Rootline Cache for Page ID ' . $pageRecord['uid'] . ' could not be warmed up: ' . $e->getMessage());
             }
         }

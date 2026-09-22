@@ -44,7 +44,7 @@ class FrontendRequestBuilder
         ]);
         try {
             $this->application->handle($serverRequest);
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
             $this->logger->error('cannot fetch url {url}: {message}', [
                 'url' => (string)$uri,
                 'message' => $e->getMessage(),
