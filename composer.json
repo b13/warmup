@@ -5,7 +5,9 @@
   "keywords": ["TYPO3 CMS", "CLI", "Cache"],
   "license": "GPL-2.0-or-later",
   "require": {
-    "typo3/cms-core": "^12.4 || ^13.4"
+    "php": "^8.1",
+    "typo3/cms-core": "^12.4 || ^13.4 || ^14.3",
+    "typo3/cms-frontend": "^12.4 || ^13.4 || ^14.3"
   },
   "autoload": {
     "psr-4": {

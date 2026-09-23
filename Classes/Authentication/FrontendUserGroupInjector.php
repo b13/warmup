@@ -18,7 +18,8 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Frontend\Authentication\ModifyResolvedFrontendGroupsEvent;
 
 /**
- * Magic logic to add user groups injected into $this->>info['alwaysActiveGroups']
+ * Resolves the frontend user groups a warmup request should be rendered for,
+ * based on the group ids the FrontendRequestBuilder attached to the request.
  */
 class FrontendUserGroupInjector
 {
@@ -27,16 +28,21 @@ class FrontendUserGroupInjector
     public function frontendUserGroupModifier(ModifyResolvedFrontendGroupsEvent $event): void
     {
         $simulationData = $event->getRequest()->getAttribute('b13/warmup');
-        if (!is_array($simulationData)) {
+        if (!is_array($simulationData) || !is_array($simulationData['simulateFrontendUserGroupIds'] ?? null)) {
             $this->logger->info(self::class . ' was activated, but no user groups were set');
             return;
         }
-        $userGroups = $this->fetchGroupsFromDatabase($simulationData['simulateFrontendUserGroupIds']);
-        $event->setGroups($userGroups);
+        $event->setGroups($this->fetchGroupsFromDatabase($simulationData['simulateFrontendUserGroupIds']));
     }
 
+    /**
+     * @param int[] $groupUids
+     */
     private function fetchGroupsFromDatabase(array $groupUids): array
     {
+        if ($groupUids === []) {
+            return [];
+        }
         $groupRecords = [];
         $this->logger->debug('Get usergroups with id: ' . implode(',', $groupUids));
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('fe_groups');
