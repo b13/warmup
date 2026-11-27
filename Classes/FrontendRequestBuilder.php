@@ -14,6 +14,7 @@ namespace B13\Warmup;
 
 use Psr\Http\Message\UriInterface;
 use Psr\Log\LoggerInterface;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Frontend\Http\Application;
@@ -30,15 +31,26 @@ class FrontendRequestBuilder
      */
     public function buildRequestForPage(UriInterface $uri, array $frontendUserGroups = []): void
     {
+        $entryScript = Environment::getPublicPath() . '/index.php';
         $serverParams = [
             'SCRIPT_NAME' => '/index.php',
+            'SCRIPT_FILENAME' => $entryScript,
             'HTTP_HOST' => $uri->getHost(),
             'SERVER_NAME' => $uri->getHost(),
             'HTTPS' => $uri->getScheme() === 'https' ? 'on' : 'off',
             'REMOTE_ADDR' => '127.0.0.1',
         ];
         $serverRequest = new ServerRequest($uri, 'GET', null, [], $serverParams);
-        $serverRequest = $serverRequest->withAttribute('normalizedParams', NormalizedParams::createFromRequest($serverRequest));
+        // NormalizedParams::createFromRequest() would use the CLI script (e.g. vendor/bin/typo3)
+        // as entry point, which is outside the public folder and results in an empty site path.
+        // Simulate the frontend entry point instead, so URLs are generated as in a web request.
+        $normalizedParams = new NormalizedParams(
+            $serverParams,
+            $GLOBALS['TYPO3_CONF_VARS']['SYS'],
+            $entryScript,
+            Environment::getPublicPath()
+        );
+        $serverRequest = $serverRequest->withAttribute('normalizedParams', $normalizedParams);
         $serverRequest = $serverRequest->withAttribute('b13/warmup', [
             'simulateFrontendUserGroupIds' => $frontendUserGroups,
         ]);
